@@ -1,5 +1,4 @@
 import os
-import json
 import time
 import ctypes
 from collections import deque
@@ -7,8 +6,6 @@ import cv2
 import numpy as np
 import mss
 import pyautogui
-
-CONFIG_FILE = "hp_config.json"
 
 # --- マウスが存在するモニター番号を特定する関数 ---
 def get_monitor_under_mouse(sct):
@@ -47,98 +44,70 @@ def main():
     print("【1P + 2P HP リアルタイムモニター】")
     print("==================================================")
 
-    # 保存された設定の読み込み確認
-    config_data = None
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-            print("\n【前回の領域設定が見つかりました】")
-            print(f" モニターIndex: {config_data.get('monitor_index', 1)}")
-            use_saved = input("前回の領域設定を使用しますか？ (y/n): ").strip().lower()
-            if use_saved != 'y':
-                config_data = None
-        except Exception as e:
-            config_data = None
+    print("\nゲーム画面のあるディスプレイにマウスカーソルを移動してください。")
+    input("準備ができたら [Enter] キーを押してください...")
 
-    if config_data is None:
-        print("\nゲーム画面のあるディスプレイにマウスカーソルを移動してください。")
-        input("準備ができたら [Enter] キーを押してください...")
+    try:
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd != 0:
+            ctypes.windll.user32.ShowWindow(hwnd, 6) # SW_MINIMIZE = 6
+    except Exception:
+        pass
 
-        try:
-            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
-            if hwnd != 0:
-                ctypes.windll.user32.ShowWindow(hwnd, 6) # SW_MINIMIZE = 6
-        except Exception:
-            pass
+    time.sleep(0.5)
 
-        time.sleep(0.5)
+    # マウスがあるモニターを特定
+    mon_idx, target_monitor = get_monitor_under_mouse(sct)
+    print(f"-> モニター {mon_idx} を自動検出しました。")
 
-        # マウスがあるモニターを特定
-        mon_idx, target_monitor = get_monitor_under_mouse(sct)
-        print(f"-> モニター {mon_idx} を自動検出しました。")
+    full_img = np.array(sct.grab(target_monitor))
+    full_frame = cv2.cvtColor(full_img, cv2.COLOR_BGRA2BGR)
+    
+    cv2.namedWindow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER")
+    param = {'image': full_frame}
+    cv2.setMouseCallback("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER", select_crop_area, param)
 
-        full_img = np.array(sct.grab(target_monitor))
-        full_frame = cv2.cvtColor(full_img, cv2.COLOR_BGRA2BGR)
-        
-        cv2.namedWindow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER")
-        param = {'image': full_frame}
-        cv2.setMouseCallback("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER", select_crop_area, param)
+    print("\n【ドラッグ操作手順】")
+    print("1. 1Pゲージの左端から2Pゲージの右端まで（KOマーク含む両方のゲージ全体）を1回で囲みます。")
+    print("2. 囲み終わったら 『ENTER』 キーを押して確定します。")
 
-        print("\n【ドラッグ操作手順】")
-        print("1. 1Pゲージの左端から2Pゲージの右端まで（KOマーク含む両方のゲージ全体）を1回で囲みます。")
-        print("2. 囲み終わったら 『ENTER』 キーを押して確定します。")
+    global ref_point, cropping, current_mouse_pos
+    ref_point = []
+    cropping = False
 
-        global ref_point, cropping, current_mouse_pos
-        ref_point = []
-        cropping = False
+    while True:
+        display_img = full_frame.copy()
+        if cropping and len(ref_point) == 1:
+            cv2.rectangle(display_img, ref_point[0], current_mouse_pos, (0, 255, 0), 2)
+        elif len(ref_point) == 2:
+            cv2.rectangle(display_img, ref_point[0], ref_point[1], (0, 255, 0), 2)
 
-        while True:
-            display_img = full_frame.copy()
-            if cropping and len(ref_point) == 1:
-                cv2.rectangle(display_img, ref_point[0], current_mouse_pos, (0, 255, 0), 2)
-            elif len(ref_point) == 2:
-                cv2.rectangle(display_img, ref_point[0], ref_point[1], (0, 255, 0), 2)
+        cv2.imshow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER", display_img)
+        key = cv2.waitKey(15) & 0xFF
 
-            cv2.imshow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER", display_img)
-            key = cv2.waitKey(15) & 0xFF
+        if key == ord("c"):
+            ref_point = []
+            cropping = False
+        elif key in (13, 32): # Enter or Space
+            if len(ref_point) == 2:
+                break
 
-            if key == ord("c"):
-                ref_point = []
-                cropping = False
-            elif key in (13, 32): # Enter or Space
-                if len(ref_point) == 2:
-                    break
+    cv2.destroyWindow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER")
 
-        cv2.destroyWindow("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER")
+    x1, y1 = ref_point[0]
+    x2, y2 = ref_point[1]
+    
+    left = min(x1, x2)
+    top = min(y1, y2)
+    width = abs(x1 - x2)
+    height = abs(y1 - y2)
 
-        x1, y1 = ref_point[0]
-        x2, y2 = ref_point[1]
-        
-        left = min(x1, x2)
-        top = min(y1, y2)
-        width = abs(x1 - x2)
-        height = abs(y1 - y2)
-
-        monitor_hp = {
-            "top": target_monitor["top"] + top,
-            "left": target_monitor["left"] + left,
-            "width": width,
-            "height": height
-        }
-
-        config_data = {
-            "monitor_index": mon_idx,
-            "monitor_hp": monitor_hp
-        }
-        try:
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(config_data, f, indent=4)
-            print("-> 領域設定を 'hp_config.json' に保存しました。")
-        except Exception as e:
-            print(f"設定保存エラー: {e}")
-    else:
-        monitor_hp = config_data.get("monitor_hp")
+    monitor_hp = {
+        "top": target_monitor["top"] + top,
+        "left": target_monitor["left"] + left,
+        "width": width,
+        "height": height
+    }
 
     # 黄色検出用HSV範囲
     lower_yellow = np.array([15, 120, 120])
