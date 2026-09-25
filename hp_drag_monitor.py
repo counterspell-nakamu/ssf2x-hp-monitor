@@ -41,7 +41,7 @@ def main():
     sct = mss.mss()
     
     print("==================================================")
-    print("【1P + 2P HP リアルタイムモニター（メディアンフィルタ版）】")
+    print("【1P + 2P HP リアルタイムモニター（緑/赤バー基準固定版）】")
     print("==================================================")
 
     print("\nゲーム画面のあるディスプレイにマウスカーソルを移動してください。")
@@ -110,7 +110,7 @@ def main():
     }
 
     # 黄色検出用HSV範囲（高閾値 220）
-    lower_yellow = np.array([15, 220, 220])
+    lower_yellow = np.array([15, 200, 200])
     upper_yellow = np.array([35, 255, 255])
 
     print("\n画面の安定を待っています（1秒待機）...")
@@ -122,10 +122,10 @@ def main():
     
     # 基準位置および最大幅の記憶用
     max_yellow_width_1p = None
-    fixed_base_x_1p = None  # 1Pの固定基準点（右端）
+    fixed_base_x_1p = None  # 1Pの固定基準点（KO側/右端）
     
     max_yellow_width_2p = None
-    fixed_base_x_2p = None  # 2Pの固定基準点（左端）
+    fixed_base_x_2p = None  # 2Pの固定基準点（KO側/左端）
 
     # 表示モードフラグ（True: 通常/デバッグ, False: 数字のみ/配信用）
     show_debug_view = True
@@ -175,14 +175,16 @@ def main():
                     valid_cols_2p.add(col)
 
         # --- 初回（満タン時）の基準位置と最大幅決定 ---
+        # 緑色バーの左端（min）を満タン起点とし、右端（max）までの長さを満タン幅とする
         if fixed_base_x_1p is None and len(valid_cols_1p) > 0:
-            fixed_base_x_1p = max(valid_cols_1p)  # 1Pの右端
-            left_x_1p = min(valid_cols_1p)         # 1Pの左端
+            fixed_base_x_1p = max(valid_cols_1p)   # 1Pの右端（KO側）
+            left_x_1p = min(valid_cols_1p)          # 緑色バーの左端
             max_yellow_width_1p = fixed_base_x_1p - left_x_1p + 1
 
+        # 赤色バーの右端（max）を満タン起点とし、左端（min）までの長さを満タン幅とする
         if fixed_base_x_2p is None and len(valid_cols_2p) > 0:
-            fixed_base_x_2p = min(valid_cols_2p)  # 2Pの左端
-            right_x_2p = max(valid_cols_2p)        # 2Pの右端
+            fixed_base_x_2p = min(valid_cols_2p)   # 2Pの左端（KO側）
+            right_x_2p = max(valid_cols_2p)         # 赤色バーの右端
             max_yellow_width_2p = right_x_2p - fixed_base_x_2p + 1
 
         # --- 端の座標から幅を計算 ---
