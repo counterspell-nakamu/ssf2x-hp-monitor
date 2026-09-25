@@ -41,7 +41,7 @@ def main():
     sct = mss.mss()
     
     print("==================================================")
-    print("【1P + 2P HP リアルタイムモニター】")
+    print("【1P + 2P HP リアルタイムモニター（メディアンフィルタ版）】")
     print("==================================================")
 
     print("\nゲーム画面のあるディスプレイにマウスカーソルを移動してください。")
@@ -68,7 +68,7 @@ def main():
     cv2.setMouseCallback("Select BOTH HP Areas (1P + 2P) - Drag & Press ENTER", select_crop_area, param)
 
     print("\n【ドラッグ操作手順】")
-    print("1. 1Pゲージの左端から2Pゲージの右端まで（KOマーク含む両方のゲージ全体）を1回で囲みます。")
+    print("1. 満タン状態の1Pゲージ左端から2Pゲージ右端まで（両方のゲージ全体）を1回で囲みます。")
     print("2. 囲み終わったら 『ENTER』 キーを押して確定します。")
 
     global ref_point, cropping, current_mouse_pos
@@ -109,22 +109,23 @@ def main():
         "height": height
     }
 
-    # 黄色検出用HSV範囲
-    lower_yellow = np.array([15, 120, 120])
+    # 黄色検出用HSV範囲（高閾値 220）
+    lower_yellow = np.array([15, 220, 220])
     upper_yellow = np.array([35, 255, 255])
 
     print("\n画面の安定を待っています（1秒待機）...")
     time.sleep(1.0)
 
-    hp_history_1p = deque(maxlen=3)
-    hp_history_2p = deque(maxlen=3)
+    # 突発ノイズ除去用の5フレーム履歴（メディアンフィルタ用）
+    hp_history_1p = deque(maxlen=5)
+    hp_history_2p = deque(maxlen=5)
     
     # 基準位置および最大幅の記憶用
     max_yellow_width_1p = None
-    fixed_base_x_1p = None
+    fixed_base_x_1p = None  # 1Pの固定基準点（右端）
     
     max_yellow_width_2p = None
-    fixed_base_x_2p = None
+    fixed_base_x_2p = None  # 2Pの固定基準点（左端）
 
     # 表示モードフラグ（True: 通常/デバッグ, False: 数字のみ/配信用）
     show_debug_view = True
@@ -149,7 +150,7 @@ def main():
         hsv = cv2.cvtColor(crop_inner, cv2.COLOR_BGR2HSV)
         mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
 
-        # --- 1列ごとの縦連続ドット判定（1P・2Pそれぞれ抽出） ---
+        # --- 1列ごとの縦連続ドット判定 ---
         valid_cols_1p = set()
         valid_cols_2p = set()
 
@@ -166,7 +167,8 @@ def main():
                 else:
                     current_consecutive = 0
             
-            if max_consecutive >= 3:
+            # 縦2ピクセル以上の連続を有効列とする
+            if max_consecutive >= 2:
                 if col < mid_x:
                     valid_cols_1p.add(col)
                 else:
@@ -174,67 +176,66 @@ def main():
 
         # --- 初回（満タン時）の基準位置と最大幅決定 ---
         if fixed_base_x_1p is None and len(valid_cols_1p) > 0:
-            fixed_base_x_1p = max(valid_cols_1p)
-            left_x_1p = min(valid_cols_1p)
+            fixed_base_x_1p = max(valid_cols_1p)  # 1Pの右端
+            left_x_1p = min(valid_cols_1p)         # 1Pの左端
             max_yellow_width_1p = fixed_base_x_1p - left_x_1p + 1
 
         if fixed_base_x_2p is None and len(valid_cols_2p) > 0:
-            fixed_base_x_2p = min(valid_cols_2p)
-            right_x_2p = max(valid_cols_2p)
+            fixed_base_x_2p = min(valid_cols_2p)  # 2Pの左端
+            right_x_2p = max(valid_cols_2p)        # 2Pの右端
             max_yellow_width_2p = right_x_2p - fixed_base_x_2p + 1
 
-        # --- 黄色ドット幅測定 ---
+        # --- 端の座標から幅を計算 ---
         detected_width_1p = 0
-        if fixed_base_x_1p is not None:
-            for c in range(fixed_base_x_1p, -1, -1):
-                if c in valid_cols_1p:
-                    detected_width_1p += 1
-                else:
-                    break
+        if fixed_base_x_1p is not None and len(valid_cols_1p) > 0:
+            current_leftmost_1p = min(valid_cols_1p)
+            if current_leftmost_1p <= fixed_base_x_1p:
+                detected_width_1p = fixed_base_x_1p - current_leftmost_1p + 1
 
         detected_width_2p = 0
-        if fixed_base_x_2p is not None:
-            for c in range(fixed_base_x_2p, w):
-                if c in valid_cols_2p:
-                    detected_width_2p += 1
-                else:
-                    break
+        if fixed_base_x_2p is not None and len(valid_cols_2p) > 0:
+            current_rightmost_2p = max(valid_cols_2p)
+            if current_rightmost_2p >= fixed_base_x_2p:
+                detected_width_2p = current_rightmost_2p - fixed_base_x_2p + 1
 
         # --- 144〜0 計算モデル ---
         if max_yellow_width_1p and max_yellow_width_1p > 0:
             raw_hp_1p = round((detected_width_1p / max_yellow_width_1p) * 144)
             raw_hp_1p = max(0, min(144, raw_hp_1p))
         else:
-            raw_hp_1p = 144
+            raw_hp_1p = 0
 
         if max_yellow_width_2p and max_yellow_width_2p > 0:
             raw_hp_2p = round((detected_width_2p / max_yellow_width_2p) * 144)
             raw_hp_2p = max(0, min(144, raw_hp_2p))
         else:
-            raw_hp_2p = 144
+            raw_hp_2p = 0
 
-        # 移動平均
+        # --- 中央値（メディアン）フィルタ処理 ---
         hp_history_1p.append(raw_hp_1p)
-        hp_1p = max(0, min(144, round(sum(hp_history_1p) / len(hp_history_1p))))
-
         hp_history_2p.append(raw_hp_2p)
-        hp_2p = max(0, min(144, round(sum(hp_history_2p) / len(hp_history_2p))))
+
+        # 直近5フレームの中央値（Median）を取得して突発ノイズをカット
+        final_hp_1p = int(np.median(hp_history_1p))
+        final_hp_2p = int(np.median(hp_history_2p))
 
         # --- UI表示作成 ---
         header_height = 45
         header_bg = np.zeros((header_height, w, 3), dtype=np.uint8)
         
-        text_str = f"1P: {hp_1p:3d} / 144   |   2P: {hp_2p:3d} / 144"
+        text_str = f"1P: {final_hp_1p:3d} / 144   |   2P: {final_hp_2p:3d} / 144"
         cv2.putText(header_bg, text_str, (10, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
         # モードに応じたウィンドウ描画
         if show_debug_view:
-            # 通常モード：ヘッダー ＋ キャプチャ画面 ＋ デバッグマスク
             mask_yellow_full = np.zeros((h, w, 3), dtype=np.uint8)
-            for col in valid_cols_1p:
-                mask_yellow_full[y_start:y_end, col] = (0, 255, 0)
-            for col in valid_cols_2p:
-                mask_yellow_full[y_start:y_end, col] = (0, 0, 255)
+            if fixed_base_x_1p is not None and detected_width_1p > 0:
+                start_x = fixed_base_x_1p - detected_width_1p + 1
+                mask_yellow_full[y_start:y_end, start_x:fixed_base_x_1p+1] = (0, 255, 0)
+            
+            if fixed_base_x_2p is not None and detected_width_2p > 0:
+                end_x = fixed_base_x_2p + detected_width_2p
+                mask_yellow_full[y_start:y_end, fixed_base_x_2p:end_x] = (0, 0, 255)
 
             debug_view = cv2.vconcat([
                 header_bg, 
@@ -243,14 +244,13 @@ def main():
             ])
             cv2.imshow("HP Realtime Monitor (q: Quit, m: Toggle Mode)", debug_view)
         else:
-            # 数字のみモード（配信用）：ヘッダー画像のみ表示
             cv2.imshow("HP Realtime Monitor (q: Quit, m: Toggle Mode)", header_bg)
 
         key = cv2.waitKey(30) & 0xFF
         if key == ord('q'):
             break
         elif key == ord('m'):
-            show_debug_view = not show_debug_view  # モード切り替え
+            show_debug_view = not show_debug_view
 
     cv2.destroyAllWindows()
 
