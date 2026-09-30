@@ -1,0 +1,31 @@
+# HP Real-time Monitor for Fighting Games (Fightcade / Super Street Fighter II X)
+
+対戦格闘ゲーム（ファイケ等）のHPゲージをリアルタイムで数値化するPythonツールです。
+A real-time Python tool that captures and converts HP bars into numerical values.
+
+> ⚠️ **Disclaimer / 注意:**
+> I am a programming beginner, so this tool is imperfect and simple.
+> （私はプログラミング素人ですので、このアプリは不完全です。試行錯誤しながら調整中のため、変更が入ることがあります。）
+
+---
+
+## Features / 特徴
+- **Interactive Area Selection**: マウスドラッグで1Pと2PのHPゲージ全体を囲むだけで簡単にエリア指定できます。
+- **Real-time Values**: HPをリアルタイムで数値化（144満点）します。
+- **Noise Reduction**: メディアンフィルタ（5フレーム履歴）により、表示のブレを軽減しています。
+- **Display Modes**: `m` キーでデバッグ画面と数字のみ（配信用）の表示を切り替えられます。
+
+---
+
+## Current Limitations & Compatibility / 現在の制限・相性について
+- **Best Stage**: ファイケの**キャミィステージ**であれば、現状ほぼ完璧に動作します。
+- **Stage Background Issue**: 背景の上部に黄色が含まれるステージ（バイソン / Boxer など）では正しく検出できません。
+- **Image Quality**: 動画や画面の画質が少しでも粗くなると、正確な数値が出なくなります。
+
+---
+
+## Requirements / 必要環境
+- Python 3.x
+- Required libraries / 必要なライブラリ:
+  ```bash
+  pip install opencv-python numpy mss pyautogui
