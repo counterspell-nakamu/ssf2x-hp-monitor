@@ -9,7 +9,7 @@ A real-time Python tool that captures and converts HP bars into numerical values
 
 ---
 
-## Features / 特徴
+# Features / 特徴
 - **Interactive Area Selection**: マウスドラッグで1Pと2PのHPゲージ全体を囲むだけで簡単にエリア指定できます。
 - **Real-time Values**: HPをリアルタイムで数値化（144満点）します。
 - **Noise Reduction**: メディアンフィルタ（5フレーム履歴）により、表示のブレを軽減しています。
@@ -17,32 +17,27 @@ A real-time Python tool that captures and converts HP bars into numerical values
 
 ---
 
-## Current Limitations & Compatibility / 現在の制限・相性について
+# Current Limitations & Compatibility / 現在の制限・相性について
 - **Best Stage**: ファイケの**キャミィステージ**であれば、現状ほぼ完璧に動作します。
 - **Stage Background Issue**: 背景の上部に黄色が含まれるステージ（バイソン / Boxer など）では正しく検出できません。
 - **Image Quality**: 動画や画面の画質が少しでも粗くなると、正確な数値が出なくなります。
 
 ---
 
-## Requirements / 必要環境
+# Requirements / 必要環境
 - Python 3.x
 - Required libraries / 必要なライブラリ:
-  ```bash
-  pip install opencv-python numpy mss pyautogui
+  `pip install opencv-python numpy mss pyautogui`
 
-How to Use / 使い方
-スクリプトを実行する / Run the script:
+---
 
-Bash
-python hp_drag_monitor.py
-ゲーム画面のあるモニターにマウスカーソルを合わせて [Enter] を押す。
-(Move mouse cursor to the game monitor and press Enter)
-
-ドラッグ選択 / Drag & Select: 1Pの左端から2Pの右端まで（両方のゲージ）を1回でドラッグして囲み、[Enter] を押す。
-(Drag from 1P left edge to 2P right edge, then press Enter)
-
-操作キー / Controls:
-
-m: 表示モード切り替え（通常 ⇄ 数字のみ / Toggle view mode）
-
-q: 終了 / Quit
+# How to Use / 使い方
+1. スクリプトを実行する / Run the script:
+   `python hp_drag_monitor.py`
+2. ゲーム画面のあるモニターにマウスカーソルを合わせて **[Enter]** を押す。
+   *(Move mouse cursor to the game monitor and press Enter)*
+3. **ドラッグ選択 / Drag & Select**: 1Pの左端から2Pの右端まで（両方のゲージ）を1回でドラッグして囲み、**[Enter]** を押す。
+   *(Drag from 1P left edge to 2P right edge, then press Enter)*
+4. **操作キー / Controls**:
+   - `m`: 表示モード切り替え（通常 ⇄ 数字のみ / Toggle view mode）
+   - `q`: 終了 / Quit
