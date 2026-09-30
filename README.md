@@ -29,3 +29,20 @@ A real-time Python tool that captures and converts HP bars into numerical values
 - Required libraries / 必要なライブラリ:
   ```bash
   pip install opencv-python numpy mss pyautogui
+
+How to Use / 使い方
+スクリプトを実行する / Run the script:
+
+Bash
+python hp_drag_monitor.py
+ゲーム画面のあるモニターにマウスカーソルを合わせて [Enter] を押す。
+(Move mouse cursor to the game monitor and press Enter)
+
+ドラッグ選択 / Drag & Select: 1Pの左端から2Pの右端まで（両方のゲージ）を1回でドラッグして囲み、[Enter] を押す。
+(Drag from 1P left edge to 2P right edge, then press Enter)
+
+操作キー / Controls:
+
+m: 表示モード切り替え（通常 ⇄ 数字のみ / Toggle view mode）
+
+q: 終了 / Quit
